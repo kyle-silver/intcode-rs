@@ -223,4 +223,17 @@ impl IntCodeComputer for ProcIntCode {
     fn mem(&self, at: i64) -> i64 {
         self.get(at)
     }
+
+    fn state(&self) -> State {
+        match self.decode() {
+            OpCode::Halt => State::Halted,
+            OpCode::Read {to: _} => {
+                match self.inputs.len() {
+                    0 => State::Waiting,
+                    _ => State::Running,
+                }
+            }
+            _ => State::Running,
+        }
+    }
 }

@@ -19,4 +19,5 @@ pub trait IntCodeComputer {
     fn out(&self) -> &Vec<i64>;
     fn push(&mut self, val: i64);
     fn mem(&self, at: i64) -> i64;
+    fn state(&self) -> State;
 }
