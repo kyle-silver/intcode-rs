@@ -1,5 +1,6 @@
 use fxhash::FxHashMap;
-use crate::intcode::*;
+//use crate::intcode::*;
+use crate::*;
 
 #[derive(Debug, Clone, Copy)]
 struct Arg {
@@ -217,5 +218,9 @@ impl IntCodeComputer for ProcIntCode {
 
     fn push(&mut self, val: i64) {
         self.inputs.push(val)
+    }
+
+    fn mem(&self, at: i64) -> i64 {
+        self.get(at)
     }
 }
