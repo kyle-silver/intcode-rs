@@ -1,7 +1,6 @@
 use fxhash::FxHashMap;
 use crate::*;
 
-
 pub(crate) enum Value {
     Literal(i64),
     Pointer(i64)
@@ -9,6 +8,7 @@ pub(crate) enum Value {
 
 pub(crate) trait Arg {
     fn get(&self, rb: i64) -> Value;
+    fn arg_clone(&self) -> Box<dyn Arg>;
 }
 
 mod param_mode {
@@ -26,6 +26,7 @@ mod param_mode {
         }
     }
 
+    #[derive(Clone)]
     struct Immediate {
         val: i64,
     }
@@ -34,8 +35,13 @@ mod param_mode {
         fn get(&self, _rb: i64) -> Value {
             Value::Literal(self.val)
         }
+
+        fn arg_clone(&self) -> Box<dyn Arg> {
+            Box::new(self.clone())
+        }
     }
 
+    #[derive(Clone)]
     struct Position {
         val: i64
     }
@@ -44,8 +50,13 @@ mod param_mode {
         fn get(&self, _rb: i64) -> Value {
             Value::Pointer(self.val)
         }
+
+        fn arg_clone(&self) -> Box<dyn Arg> {
+            Box::new(self.clone())
+        }
     }
 
+    #[derive(Clone)]
     struct Relative {
         val: i64
     }
@@ -53,6 +64,10 @@ mod param_mode {
     impl Arg for Relative {
         fn get(&self, rb: i64) -> Value {
             Value::Pointer(self.val + rb)
+        }
+
+        fn arg_clone(&self) -> Box<dyn Arg> {
+            Box::new(self.clone())
         }
     }
 }
@@ -97,41 +112,41 @@ mod opcode {
         // I had some trouble getting the OpCode trait to require Clone
         match opcode {
             1 => Box::new(Add {
-                a: args.remove(0),
-                b: args.remove(0),
-                out: args.remove(0),
+                a: args[0].arg_clone(),
+                b: args[1].arg_clone(),
+                out: args[2].arg_clone(),
             }),
             2 => Box::new(Mul {
-                a: args.remove(0),
-                b: args.remove(0),
-                out: args.remove(0),
+                a: args[0].arg_clone(),
+                b: args[1].arg_clone(),
+                out: args[2].arg_clone(),
             }),
             3 => Box::new(Read {
-                to: args.remove(0),
+                to: args[0].arg_clone(),
             }),
             4 => Box::new(Write {
-                val: args.remove(0)
+                val: args[0].arg_clone(),
             }),
             5 => Box::new(JumpIfTrue {
-                cond: args.remove(0),
-                to: args.remove(0)
+                cond: args[0].arg_clone(),
+                to: args[1].arg_clone(),
             }),
             6 => Box::new(JumpIfFalse {
-                cond: args.remove(0),
-                to: args.remove(0)
+                cond: args[0].arg_clone(),
+                to: args[1].arg_clone(),
             }),
             7 => Box::new(LessThan {
-                a: args.remove(0),
-                b: args.remove(0),
-                out: args.remove(0),
+                a: args[0].arg_clone(),
+                b: args[1].arg_clone(),
+                out: args[2].arg_clone(),
             }),
             8 => Box::new(Equals {
-                a: args.remove(0),
-                b: args.remove(0),
-                out: args.remove(0),
+                a: args[0].arg_clone(),
+                b: args[1].arg_clone(),
+                out: args[2].arg_clone(),
             }),
             9 => Box::new(UpdateRb {
-                to_add: args.remove(0)
+                to_add: args[0].arg_clone(),
             }),
             99 => Box::new(Halt {}),
             _ => panic!("Unsupported OpCode")
