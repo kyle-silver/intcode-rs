@@ -1,23 +1,25 @@
 use fxhash::FxHashMap;
 use crate::*;
+use std::fmt::Debug;
 
 pub(crate) enum Value {
     Literal(i64),
     Pointer(i64)
 }
 
-pub(crate) trait Arg {
+pub(crate) trait Arg: Debug {
     fn get(&self, rb: i64) -> Value;
     fn arg_clone(&self) -> Box<dyn Arg>;
+    fn as_res(&self) -> Box<dyn Arg>;
 }
 
 mod param_mode {
     use super::*;
 
-    pub(crate) fn new(val: i64, pos: u32) -> Box<dyn Arg> {
+    pub(crate) fn new(modes: i64, val: i64, pos: u32) -> Box<dyn Arg> {
         // get the digit in position `pos` (zero-indexed)
         // i.e. mask(12345, 4) -> `5`
-        let mask = (val / 10i64.pow(pos)) % 10;
+        let mask = (modes / 10i64.pow(pos)) % 10;
         match mask {
             0 => Box::new(Position { val }),
             1 => Box::new(Immediate { val }),
@@ -26,7 +28,7 @@ mod param_mode {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct Immediate {
         val: i64,
     }
@@ -39,9 +41,13 @@ mod param_mode {
         fn arg_clone(&self) -> Box<dyn Arg> {
             Box::new(self.clone())
         }
+
+        fn as_res(&self) -> Box<dyn Arg> {
+            self.arg_clone()
+        }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct Position {
         val: i64
     }
@@ -54,9 +60,13 @@ mod param_mode {
         fn arg_clone(&self) -> Box<dyn Arg> {
             Box::new(self.clone())
         }
+
+        fn as_res(&self) -> Box<dyn Arg> {
+            Box::new(Immediate { val: self.val })
+        }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct Relative {
         val: i64
     }
@@ -69,9 +79,14 @@ mod param_mode {
         fn arg_clone(&self) -> Box<dyn Arg> {
             Box::new(self.clone())
         }
+
+        fn as_res(&self) -> Box<dyn Arg> {
+            self.arg_clone()
+        }
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum Action {
     Set { val: i64, addr: i64, },
     SetRb { val: i64, },
@@ -102,24 +117,22 @@ mod opcode {
     pub(crate) fn new(data: [i64; 4]) -> Box<dyn OpCode> {
         let opcode = data[0] % 100;
         let modes = data[0] / 100;
-        let mut args: Vec<Box<dyn Arg>> = data[1..=3].iter()
+        let args: Vec<Box<dyn Arg>> = data[1..=3].iter()
             .enumerate()
             .map(|(i, val)| {
-                param_mode::new(*val, i as u32)
+                param_mode::new(modes, *val, i as u32)
             })
             .collect();
-        // there might be a cleaner way to do this...
-        // I had some trouble getting the OpCode trait to require Clone
         match opcode {
             1 => Box::new(Add {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].arg_clone(),
+                out: args[2].as_res(),
             }),
             2 => Box::new(Mul {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].arg_clone(),
+                out: args[2].as_res(),
             }),
             3 => Box::new(Read {
                 to: args[0].arg_clone(),
@@ -138,12 +151,12 @@ mod opcode {
             7 => Box::new(LessThan {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].arg_clone(),
+                out: args[2].as_res(),
             }),
             8 => Box::new(Equals {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].arg_clone(),
+                out: args[2].as_res(),
             }),
             9 => Box::new(UpdateRb {
                 to_add: args[0].arg_clone(),
@@ -153,6 +166,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct Add {
         a: Box<dyn Arg>,
         b: Box<dyn Arg>,
@@ -352,7 +366,7 @@ impl PolyIntCode {
     }
 
     fn set(&mut self, addr: i64, val: i64) {
-        self.mem.insert(addr, val).unwrap();
+        self.mem.insert(addr, val);
     }
 
     fn decode(&self) -> Box<dyn OpCode> {

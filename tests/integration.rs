@@ -1,6 +1,7 @@
 use std::fs;
 use intcode_rs::*;
 use intcode_rs::procedural_comp::ProcIntCode;
+use intcode_rs::polymorphic_comp::PolyIntCode;
 
 fn read(file_name: &str) -> Vec<i64> {
     fs::read_to_string(file_name)
@@ -11,16 +12,23 @@ fn read(file_name: &str) -> Vec<i64> {
         .collect()
 }
 
+fn day2_part1(comp: &mut impl IntCodeComputer) -> i64 {
+    comp.run();
+    comp.mem(0)
+}
+
 #[test]
-fn day2_part1_proc() {
+fn d2p1() {
     let mut program = read("res/02.txt");
     program[1] = 12;
     program[2] = 2;
-    let mut comp = ProcIntCode::new(program, vec![]);
-    let state = comp.run();
-    println!("Day 02, Part 1: {}", comp.mem(0));
-    assert_eq!(State::Halted, state);
-    assert_eq!(4484226, comp.mem(0));
+    let mut proc = ProcIntCode::new(program.clone(), vec![]);
+    let mut poly = PolyIntCode::new(program.clone(), vec![]);
+    let ans_proc = day2_part1(&mut proc);
+    let ans_poly = day2_part1(&mut poly);
+    println!("Day 02, Part 1: {} proc / {} poly", ans_proc, ans_poly);
+    assert_eq!(4484226, ans_proc);
+    assert_eq!(4484226, ans_poly);
 }
 
 #[test]
