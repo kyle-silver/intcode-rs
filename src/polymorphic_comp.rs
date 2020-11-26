@@ -1,17 +1,30 @@
 use fxhash::FxHashMap;
 use crate::*;
 
-enum Value {
+
+pub(crate) enum Value {
     Literal(i64),
     Pointer(i64)
 }
 
-trait Arg {
+pub(crate) trait Arg {
     fn get(&self, rb: i64) -> Value;
 }
 
 mod param_mode {
     use super::*;
+
+    pub(crate) fn new(val: i64, pos: u32) -> Box<dyn Arg> {
+        // get the digit in position `pos` (zero-indexed)
+        // i.e. mask(12345, 4) -> `5`
+        let mask = (val / 10i64.pow(pos)) % 10;
+        match mask {
+            0 => Box::new(Position { val }),
+            1 => Box::new(Immediate { val }),
+            2 => Box::new(Relative { val }),
+            _ => panic!("Unsupported Parameter Mode")
+        }
+    }
 
     struct Immediate {
         val: i64,
@@ -44,7 +57,7 @@ mod param_mode {
     }
 }
 
-enum Action {
+pub(crate) enum Action {
     Set { val: i64, addr: i64, },
     SetRb { val: i64, },
     Read { to: i64, },
@@ -53,21 +66,75 @@ enum Action {
     Halt
 }
 
+pub(crate) trait OpCode {
+    // we *could* pass in a mutable copy of the whole computer, but that would mean exposing
+    // a *lot* of internal state. Something about that just smells wrong... you shouldn't
+    // be able to get access to the _whole_ system just by implementing this trait.
+    // So instead, we need to compromise and let the trait implementor *read* the whole system,
+    // but pass back an instruction on how to modify it rather than doing so directly.
+    fn execute(&self, comp: &PolyIntCode) -> Action;
+
+    // since we can't directly modify the program counter, we need to have a separate function
+    // telling the computer how far to advance.
+    fn advance(&self) -> i64 {
+        4
+    }
+}
+
 mod opcode {
     use super::*;
 
-    trait OpCode {
-        // we *could* pass in a mutable copy of the whole computer, but that would mean exposing
-        // a *lot* of internal state. Something about that just smells wrong... you shouldn't
-        // be able to get access to the _whole_ system just by implementing this trait.
-        // So instead, we need to compromise and let the trait implementor *read* the whole system,
-        // but pass back an instruction on how to modify it rather than doing so directly.
-        fn execute(&self, comp: &PolyIntCode) -> Action;
-
-        // since we can't directly modify the program counter, we need to have a separate function
-        // telling the computer how far to advance.
-        fn advance(&self) -> i64 {
-            4
+    pub(crate) fn new(data: [i64; 4]) -> Box<dyn OpCode> {
+        let opcode = data[0] % 100;
+        let modes = data[0] / 100;
+        let mut args: Vec<Box<dyn Arg>> = data[1..=3].iter()
+            .enumerate()
+            .map(|(i, val)| {
+                param_mode::new(*val, i as u32)
+            })
+            .collect();
+        // there might be a cleaner way to do this...
+        // I had some trouble getting the OpCode trait to require Clone
+        match opcode {
+            1 => Box::new(Add {
+                a: args.remove(0),
+                b: args.remove(0),
+                out: args.remove(0),
+            }),
+            2 => Box::new(Mul {
+                a: args.remove(0),
+                b: args.remove(0),
+                out: args.remove(0),
+            }),
+            3 => Box::new(Read {
+                to: args.remove(0),
+            }),
+            4 => Box::new(Write {
+                val: args.remove(0)
+            }),
+            5 => Box::new(JumpIfTrue {
+                cond: args.remove(0),
+                to: args.remove(0)
+            }),
+            6 => Box::new(JumpIfFalse {
+                cond: args.remove(0),
+                to: args.remove(0)
+            }),
+            7 => Box::new(LessThan {
+                a: args.remove(0),
+                b: args.remove(0),
+                out: args.remove(0),
+            }),
+            8 => Box::new(Equals {
+                a: args.remove(0),
+                b: args.remove(0),
+                out: args.remove(0),
+            }),
+            9 => Box::new(UpdateRb {
+                to_add: args.remove(0)
+            }),
+            99 => Box::new(Halt {}),
+            _ => panic!("Unsupported OpCode")
         }
     }
 
@@ -248,25 +315,92 @@ pub struct PolyIntCode {
 }
 
 impl PolyIntCode {
+    pub fn new(image: Vec<i64>, inputs: Vec<i64>) -> PolyIntCode {
+        let mut mem: FxHashMap<i64,i64> = FxHashMap::default();
+        for (k,v) in image.iter().enumerate() {
+            mem.insert(k as i64, *v);
+        }
+        PolyIntCode {
+            mem,
+            pc: 0,
+            rb: 0,
+            inputs,
+            outputs: Vec::new(),
+        }
+    }
+
     fn fetch(&self, arg: &Box<dyn Arg>) -> i64 {
         match arg.get(self.rb) {
             Value::Literal(literal) => literal,
             Value::Pointer(address) => self.mem(address),
         }
     }
+
+    fn set(&mut self, addr: i64, val: i64) {
+        self.mem.insert(addr, val).unwrap();
+    }
+
+    fn decode(&self) -> Box<dyn OpCode> {
+        let data = [
+            self.mem(self.pc),
+            self.mem(self.pc + 1),
+            self.mem(self.pc + 2),
+            self.mem(self.pc + 3),
+        ];
+        opcode::new(data)
+    }
+
+    fn execute(&mut self, op: Box<dyn OpCode>) -> State {
+        let action = op.execute(self);
+        match action {
+            Action::Set {val, addr} => {
+                self.set(addr, val);
+            },
+            Action::SetRb {val} => {
+                self.rb = val;
+            },
+            Action::Read {to} => {
+                if self.inputs.get(0) == None {
+                    // don't advance, instruction needs to be replayed
+                    return State::Waiting;
+                }
+                let data = self.inputs.remove(0);
+                self.set(to, data);
+            },
+            Action::Write {val} => {
+                self.outputs.push(val);
+            },
+            Action::Jump {to} => {
+                self.pc = to;
+            },
+            Action::Halt => {
+                return State::Halted;
+            }
+        };
+        self.pc += op.advance();
+        State::Running
+    }
 }
 
 impl IntCodeComputer for PolyIntCode {
     fn run(&mut self) -> State {
-        unimplemented!()
+        loop {
+            let opcode = self.decode();
+            let state = self.execute(opcode);
+            if let State::Running = state {
+                continue;
+            } else {
+                return state;
+            }
+        }
     }
 
     fn out(&self) -> &Vec<i64> {
-        unimplemented!()
+        &self.outputs
     }
 
     fn push(&mut self, val: i64) {
-        unimplemented!()
+        self.inputs.push(val)
     }
 
     fn mem(&self, at: i64) -> i64 {
@@ -274,6 +408,15 @@ impl IntCodeComputer for PolyIntCode {
     }
 
     fn state(&self) -> State {
-        unimplemented!()
+        match self.decode().execute(self) {
+            Action::Halt => State::Halted,
+            Action::Read {to: _} => {
+                match self.inputs.len() {
+                    0 => State::Waiting,
+                    _ => State::Running,
+                }
+            }
+            _ => State::Running,
+        }
     }
 }
