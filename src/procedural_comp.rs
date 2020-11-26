@@ -1,9 +1,8 @@
 use fxhash::FxHashMap;
-//use crate::intcode::*;
 use crate::*;
 
 #[derive(Debug, Clone, Copy)]
-struct Arg {
+pub struct Arg {
     val: i64,
     mode: ParamMode
 }
@@ -92,10 +91,6 @@ impl ProcIntCode {
         }
     }
 
-    fn get(&self, addr: i64) -> i64 {
-        *self.mem.get(&addr).unwrap_or(&0)
-    }
-
     fn set(&mut  self, arg: Arg, val: i64) {
         let base = match arg.mode {
             ParamMode::Relative => self.rb,
@@ -110,22 +105,22 @@ impl ProcIntCode {
             ParamMode::Immediate => arg.val,
             ParamMode::Position => {
                 let address = arg.val;
-                *self.mem.get(&address).unwrap_or(&0)
+                self.mem(address)
             },
             ParamMode::Relative => {
-                let offset = arg.val as i64;
-                let address = self.rb as i64 + offset;
-                *self.mem.get(&address).unwrap_or(&0)
+                let offset = arg.val;
+                let address = self.rb + offset;
+                self.mem(address)
             }
         }
     }
 
     fn decode(&self) -> OpCode {
         let data = [
-            self.get(self.pc),
-            self.get(self.pc + 1),
-            self.get(self.pc + 2),
-            self.get(self.pc + 3),
+            self.mem(self.pc),
+            self.mem(self.pc + 1),
+            self.mem(self.pc + 2),
+            self.mem(self.pc + 3),
         ];
         OpCode::new(data)
     }
@@ -221,7 +216,7 @@ impl IntCodeComputer for ProcIntCode {
     }
 
     fn mem(&self, at: i64) -> i64 {
-        self.get(at)
+        *self.mem.get(&at).unwrap_or(&0)
     }
 
     fn state(&self) -> State {
