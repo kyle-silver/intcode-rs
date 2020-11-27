@@ -31,24 +31,32 @@ fn d2p1() {
     assert_eq!(4484226, ans_poly);
 }
 
-#[test]
-fn day2_part2_proc() {
+fn day2_part2(compfn: fn(Vec<i64>) -> Box<dyn IntCodeComputer>) -> i64 {
+    let program = read("res/02.txt");
     let mut answer = 0;
     for noun in 0..=99 {
         for verb in 0..=99 {
-            let mut program = read("res/02.txt");
+            let mut program = program.clone();
             program[1] = noun;
             program[2] = verb;
-            let mut comp = ProcIntCode::new(program, vec![]);
+            let mut comp = compfn(program);
             comp.run();
             if comp.mem(0) == 19690720 {
                 answer = 100 * noun + verb;
-                println!("Day 02, Part 2: {}", 100 * noun + verb);
                 break;
             }
         }
     }
-    assert_eq!(5696, answer);
+    answer
+}
+
+#[test]
+fn d2p2() {
+    let ans_proc = day2_part2(|program| Box::new(ProcIntCode::new(program, vec![])));
+    let ans_poly = day2_part2(|program| Box::new(PolyIntCode::new(program, vec![])));
+    println!("Day 02, Part 2: {} proc / {} poly", ans_proc, ans_poly);
+    assert_eq!(5696, ans_proc);
+    assert_eq!(5696, ans_poly);
 }
 
 fn day5_part1(mut comp: impl IntCodeComputer) -> Vec<i64> {
