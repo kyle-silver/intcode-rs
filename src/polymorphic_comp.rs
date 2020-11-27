@@ -2,12 +2,12 @@ use fxhash::FxHashMap;
 use crate::*;
 use std::fmt::Debug;
 
-pub(crate) enum Value {
+pub enum Value {
     Literal(i64),
     Pointer(i64)
 }
 
-pub(crate) trait Arg: Debug {
+pub trait Arg: Debug {
     fn get(&self, rb: i64) -> Value;
     fn arg_clone(&self) -> Box<dyn Arg>;
     fn as_res(&self, rb: i64) -> Box<dyn Arg>;
@@ -88,7 +88,7 @@ mod param_mode {
 }
 
 #[derive(Debug)]
-pub(crate) enum Action {
+pub enum Action {
     Set { val: i64, addr: i64, },
     SetRb { val: i64, },
     Read { to: i64, },
@@ -97,7 +97,7 @@ pub(crate) enum Action {
     Halt
 }
 
-pub(crate) trait OpCode: Debug {
+pub trait OpCode: Debug {
     // we *could* pass in a mutable copy of the whole computer, but that would mean exposing
     // a *lot* of internal state. Something about that just smells wrong... you shouldn't
     // be able to get access to the _whole_ system just by implementing this trait.
@@ -115,63 +115,11 @@ pub(crate) trait OpCode: Debug {
 mod opcode {
     use super::*;
 
-    pub(crate) fn new(data: [i64; 4], rb: i64) -> Box<dyn OpCode> {
-        let opcode = data[0] % 100;
-        let modes = data[0] / 100;
-        let args: Vec<Box<dyn Arg>> = data[1..=3].iter()
-            .enumerate()
-            .map(|(i, val)| {
-                param_mode::new(modes, *val, i as u32)
-            })
-            .collect();
-        match opcode {
-            1 => Box::new(Add {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
-            }),
-            2 => Box::new(Mul {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
-            }),
-            3 => Box::new(Read {
-                to: args[0].as_res(rb),
-            }),
-            4 => Box::new(Write {
-                val: args[0].arg_clone(),
-            }),
-            5 => Box::new(JumpIfTrue {
-                cond: args[0].arg_clone(),
-                to: args[1].arg_clone(),
-            }),
-            6 => Box::new(JumpIfFalse {
-                cond: args[0].arg_clone(),
-                to: args[1].arg_clone(),
-            }),
-            7 => Box::new(LessThan {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
-            }),
-            8 => Box::new(Equals {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
-            }),
-            9 => Box::new(UpdateRb {
-                to_add: args[0].arg_clone(),
-            }),
-            99 => Box::new(Halt {}),
-            _ => panic!("Unsupported OpCode")
-        }
-    }
-
     #[derive(Debug)]
-    struct Add {
-        a: Box<dyn Arg>,
-        b: Box<dyn Arg>,
-        out: Box<dyn Arg>,
+    pub struct Add {
+        pub a: Box<dyn Arg>,
+        pub b: Box<dyn Arg>,
+        pub out: Box<dyn Arg>,
     }
 
     impl OpCode for Add {
@@ -184,10 +132,10 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct Mul {
-        a: Box<dyn Arg>,
-        b: Box<dyn Arg>,
-        out: Box<dyn Arg>,
+    pub(crate) struct Mul {
+        pub a: Box<dyn Arg>,
+        pub b: Box<dyn Arg>,
+        pub out: Box<dyn Arg>,
     }
 
     impl OpCode for Mul {
@@ -200,8 +148,8 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct Read {
-        to: Box<dyn Arg>,
+    pub(crate) struct Read {
+        pub to: Box<dyn Arg>,
     }
 
     impl OpCode for Read {
@@ -217,8 +165,8 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct Write {
-        val: Box<dyn Arg>,
+    pub struct Write {
+        pub val: Box<dyn Arg>,
     }
 
     impl OpCode for Write {
@@ -234,9 +182,9 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct JumpIfTrue {
-        cond: Box<dyn Arg>,
-        to: Box<dyn Arg>
+    pub struct JumpIfTrue {
+        pub cond: Box<dyn Arg>,
+        pub to: Box<dyn Arg>
     }
 
     impl OpCode for JumpIfTrue {
@@ -255,9 +203,9 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct JumpIfFalse {
-        cond: Box<dyn Arg>,
-        to: Box<dyn Arg>
+    pub struct JumpIfFalse {
+        pub cond: Box<dyn Arg>,
+        pub to: Box<dyn Arg>
     }
 
     impl OpCode for JumpIfFalse {
@@ -276,10 +224,10 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct LessThan {
-        a: Box<dyn Arg>,
-        b: Box<dyn Arg>,
-        out: Box<dyn Arg>,
+    pub struct LessThan {
+        pub a: Box<dyn Arg>,
+        pub b: Box<dyn Arg>,
+        pub out: Box<dyn Arg>,
     }
 
     impl OpCode for LessThan {
@@ -295,10 +243,10 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct Equals {
-        a: Box<dyn Arg>,
-        b: Box<dyn Arg>,
-        out: Box<dyn Arg>,
+    pub struct Equals {
+        pub a: Box<dyn Arg>,
+        pub b: Box<dyn Arg>,
+        pub out: Box<dyn Arg>,
     }
 
     impl OpCode for Equals {
@@ -314,8 +262,8 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct UpdateRb {
-        to_add: Box<dyn Arg>
+    pub struct UpdateRb {
+        pub to_add: Box<dyn Arg>
     }
 
     impl OpCode for UpdateRb {
@@ -331,7 +279,7 @@ mod opcode {
     }
 
     #[derive(Debug)]
-    struct Halt {}
+    pub struct Halt {}
 
     impl OpCode for Halt {
         fn execute(&self, _comp: &PolyIntCode) -> Action {
@@ -344,9 +292,11 @@ mod opcode {
     }
 }
 
-#[derive(Debug)]
+pub type OpCodeFactory = dyn Fn(Vec<Box<dyn Arg>>, i64) -> Box<dyn OpCode>;
+
 pub struct PolyIntCode {
     mem: FxHashMap<i64,i64>,
+    opcodes: FxHashMap<i64, Box<OpCodeFactory>>,
     pc: i64,
     rb: i64,
     inputs: Vec<i64>,
@@ -361,10 +311,19 @@ impl PolyIntCode {
         }
         PolyIntCode {
             mem,
+            opcodes: FxHashMap::default(),
             pc: 0,
             rb: 0,
             inputs,
             outputs: Vec::new(),
+        }
+    }
+
+    pub fn add_ops(&mut self, mut opcodes: FxHashMap<i64, Box<OpCodeFactory>>) {
+        let keys: Vec<i64> = opcodes.keys().map(|k| k.clone()).collect();
+        for key in keys.iter() {
+            let factory = opcodes.remove(key).unwrap();
+            self.opcodes.insert(key.clone(), factory);
         }
     }
 
@@ -386,7 +345,17 @@ impl PolyIntCode {
             self.mem(self.pc + 2),
             self.mem(self.pc + 3),
         ];
-        opcode::new(data, self.rb)
+        let opcode = data[0] % 100;
+        let modes = data[0] / 100;
+        let args: Vec<Box<dyn Arg>> = data[1..=3].iter()
+            .enumerate()
+            .map(|(i, val)| {
+                param_mode::new(modes, *val, i as u32)
+            })
+            .collect();
+        // look up the opcode in a table (modifiable at runtime) and get the opcode
+        // based on an invocation of the provided lambda
+        self.opcodes.get(&opcode).unwrap()(args, self.rb)
     }
 
     fn execute(&mut self, op: Box<dyn OpCode>) -> State {
@@ -458,4 +427,72 @@ impl IntCodeComputer for PolyIntCode {
             _ => State::Running,
         }
     }
+}
+
+pub fn add_standard_opcodes() -> FxHashMap<i64, Box<OpCodeFactory>> {
+    use opcode::*;
+    let mut opcodes: FxHashMap<i64, Box<OpCodeFactory>> = FxHashMap::default();
+    opcodes.insert(1, Box::new(|args,rb| {
+        Box::new(Add {
+            a: args[0].arg_clone(),
+            b: args[1].arg_clone(),
+            out: args[2].as_res(rb),
+        })
+    }));opcodes.insert(3, Box::new(|args,rb| {
+        Box::new(Read {
+            to: args[0].as_res(rb),
+        })
+    }));
+    opcodes.insert(2, Box::new(|args,rb| {
+        Box::new(Mul {
+            a: args[0].arg_clone(),
+            b: args[1].arg_clone(),
+            out: args[2].as_res(rb),
+        })
+    }));
+    opcodes.insert(3, Box::new(|args,rb| {
+        Box::new(Read {
+            to: args[0].as_res(rb),
+        })
+    }));
+    opcodes.insert(4, Box::new(|args,_rb| {
+        Box::new(Write {
+            val: args[0].arg_clone(),
+        })
+    }));
+    opcodes.insert(5, Box::new(|args,_rb| {
+        Box::new(JumpIfTrue {
+            cond: args[0].arg_clone(),
+            to: args[1].arg_clone(),
+        })
+    }));
+    opcodes.insert(6, Box::new(|args,_rb| {
+        Box::new(JumpIfFalse {
+            cond: args[0].arg_clone(),
+            to: args[1].arg_clone(),
+        })
+    }));
+    opcodes.insert(7, Box::new(|args,rb| {
+        Box::new(LessThan {
+            a: args[0].arg_clone(),
+            b: args[1].arg_clone(),
+            out: args[2].as_res(rb),
+        })
+    }));
+    opcodes.insert(8, Box::new(|args,rb| {
+        Box::new(Equals {
+            a: args[0].arg_clone(),
+            b: args[1].arg_clone(),
+            out: args[2].as_res(rb),
+        })
+    }));
+    opcodes.insert(9, Box::new(|args,_rb| {
+        Box::new(UpdateRb {
+            to_add: args[0].arg_clone(),
+        })
+    }));
+    opcodes.insert(99, Box::new(|_args,_rb| {
+        Box::new(Halt {})
+    }));
+    opcodes
 }
