@@ -10,7 +10,7 @@ pub(crate) enum Value {
 pub(crate) trait Arg: Debug {
     fn get(&self, rb: i64) -> Value;
     fn arg_clone(&self) -> Box<dyn Arg>;
-    fn as_res(&self) -> Box<dyn Arg>;
+    fn as_res(&self, rb: i64) -> Box<dyn Arg>;
 }
 
 mod param_mode {
@@ -42,7 +42,7 @@ mod param_mode {
             Box::new(self.clone())
         }
 
-        fn as_res(&self) -> Box<dyn Arg> {
+        fn as_res(&self, _rb: i64) -> Box<dyn Arg> {
             self.arg_clone()
         }
     }
@@ -61,7 +61,7 @@ mod param_mode {
             Box::new(self.clone())
         }
 
-        fn as_res(&self) -> Box<dyn Arg> {
+        fn as_res(&self, _rb: i64) -> Box<dyn Arg> {
             Box::new(Immediate { val: self.val })
         }
     }
@@ -80,8 +80,9 @@ mod param_mode {
             Box::new(self.clone())
         }
 
-        fn as_res(&self) -> Box<dyn Arg> {
-            self.arg_clone()
+        fn as_res(&self, rb: i64) -> Box<dyn Arg> {
+            Box::new(Immediate { val: self.val + rb })
+//            self.arg_clone()
         }
     }
 }
@@ -96,7 +97,7 @@ pub(crate) enum Action {
     Halt
 }
 
-pub(crate) trait OpCode {
+pub(crate) trait OpCode: Debug {
     // we *could* pass in a mutable copy of the whole computer, but that would mean exposing
     // a *lot* of internal state. Something about that just smells wrong... you shouldn't
     // be able to get access to the _whole_ system just by implementing this trait.
@@ -114,7 +115,7 @@ pub(crate) trait OpCode {
 mod opcode {
     use super::*;
 
-    pub(crate) fn new(data: [i64; 4]) -> Box<dyn OpCode> {
+    pub(crate) fn new(data: [i64; 4], rb: i64) -> Box<dyn OpCode> {
         let opcode = data[0] % 100;
         let modes = data[0] / 100;
         let args: Vec<Box<dyn Arg>> = data[1..=3].iter()
@@ -127,15 +128,15 @@ mod opcode {
             1 => Box::new(Add {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].as_res(),
+                out: args[2].as_res(rb),
             }),
             2 => Box::new(Mul {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].as_res(),
+                out: args[2].as_res(rb),
             }),
             3 => Box::new(Read {
-                to: args[0].arg_clone(),
+                to: args[0].as_res(rb),
             }),
             4 => Box::new(Write {
                 val: args[0].arg_clone(),
@@ -151,12 +152,12 @@ mod opcode {
             7 => Box::new(LessThan {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].as_res(),
+                out: args[2].as_res(rb),
             }),
             8 => Box::new(Equals {
                 a: args[0].arg_clone(),
                 b: args[1].arg_clone(),
-                out: args[2].as_res(),
+                out: args[2].as_res(rb),
             }),
             9 => Box::new(UpdateRb {
                 to_add: args[0].arg_clone(),
@@ -182,6 +183,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct Mul {
         a: Box<dyn Arg>,
         b: Box<dyn Arg>,
@@ -197,6 +199,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct Read {
         to: Box<dyn Arg>,
     }
@@ -213,6 +216,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct Write {
         val: Box<dyn Arg>,
     }
@@ -229,6 +233,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct JumpIfTrue {
         cond: Box<dyn Arg>,
         to: Box<dyn Arg>
@@ -249,6 +254,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct JumpIfFalse {
         cond: Box<dyn Arg>,
         to: Box<dyn Arg>
@@ -269,6 +275,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct LessThan {
         a: Box<dyn Arg>,
         b: Box<dyn Arg>,
@@ -287,6 +294,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct Equals {
         a: Box<dyn Arg>,
         b: Box<dyn Arg>,
@@ -305,6 +313,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct UpdateRb {
         to_add: Box<dyn Arg>
     }
@@ -321,6 +330,7 @@ mod opcode {
         }
     }
 
+    #[derive(Debug)]
     struct Halt {}
 
     impl OpCode for Halt {
@@ -376,7 +386,7 @@ impl PolyIntCode {
             self.mem(self.pc + 2),
             self.mem(self.pc + 3),
         ];
-        opcode::new(data)
+        opcode::new(data, self.rb)
     }
 
     fn execute(&mut self, op: Box<dyn OpCode>) -> State {
