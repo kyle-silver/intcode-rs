@@ -2,9 +2,32 @@ use fxhash::FxHashMap;
 use crate::*;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Arg {
-    val: i64,
-    mode: ParamMode
+pub enum Arg {
+    Immediate(i64),
+    Positional(i64),
+    Relative(i64)
+}
+
+impl Arg {
+    fn val(&self) -> i64 {
+        *match self {
+            Arg::Immediate(val) => val,
+            Arg::Positional(val) => val,
+            Arg::Relative(val) => val
+        }
+    }
+
+    fn parse_arg(modes: i64, pos: u32, val: i64) -> Arg {
+        // get the digit in position `pos` (zero-indexed)
+        // i.e. mask(12345, 4) -> `5`
+        let mask = (modes / 10i64.pow(pos)) % 10;
+        match mask {
+            0 => Arg::Positional(val),
+            1 => Arg::Immediate(val),
+            2 => Arg::Relative(val),
+            _ => panic!("Unsupported Parameter Mode")
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -32,12 +55,7 @@ impl OpCode {
         let modes = data[0] / 100;
         let args: Vec<Arg> = data[1..=3].iter()
             .enumerate()
-            .map(|(i, val)| {
-                Arg {
-                    val: *val,
-                    mode: OpCode::param_mode(modes, i as u32)
-                }
-            })
+            .map(|(i, val)| Arg::parse_arg(modes, i as u32, *val))
             .collect();
         match opcode {
             1 => OpCode::Add { a: args[0], b: args[1], out: args[2] },
@@ -51,18 +69,6 @@ impl OpCode {
             9 => OpCode::UpdateRb { val: args[0] },
             99 => OpCode::Halt,
             _ => panic!("Unsupported OpCode")
-        }
-    }
-
-    fn param_mode(val: i64, pos: u32) -> ParamMode {
-        // get the digit in position `pos` (zero-indexed)
-        // i.e. mask(12345, 4) -> `5`
-        let mask = (val / 10i64.pow(pos)) % 10;
-        match mask {
-            0 => ParamMode::Position,
-            1 => ParamMode::Immediate,
-            2 => ParamMode::Relative,
-            _ => panic!("Unsupported Parameter Mode")
         }
     }
 }
@@ -92,23 +98,23 @@ impl ProcIntCode {
     }
 
     fn set(&mut  self, arg: Arg, val: i64) {
-        let base = match arg.mode {
-            ParamMode::Relative => self.rb,
+        let base = match arg {
+            Arg::Relative(_) => self.rb,
             _ => 0,
         };
-        let address = base as i64 + arg.val;
+        let address = base as i64 + arg.val();
         self.mem.insert(address, val);
     }
 
     fn fetch(&self, arg: Arg) -> i64 {
-        match arg.mode {
-            ParamMode::Immediate => arg.val,
-            ParamMode::Position => {
-                let address = arg.val;
+        match arg {
+            Arg::Immediate(val) => val,
+            Arg::Positional(val) => {
+                let address = val;
                 self.mem(address)
             },
-            ParamMode::Relative => {
-                let offset = arg.val;
+            Arg::Relative(val) => {
+                let offset = val;
                 let address = self.rb + offset;
                 self.mem(address)
             }
