@@ -17,7 +17,7 @@ impl Arg {
         }
     }
 
-    fn parse_arg(modes: i64, pos: u32, val: i64) -> Arg {
+    fn new(modes: i64, pos: u32, val: i64) -> Arg {
         // get the digit in position `pos` (zero-indexed)
         // i.e. mask(12345, 4) -> `5`
         let mask = (modes / 10i64.pow(pos)) % 10;
@@ -55,7 +55,7 @@ impl OpCode {
         let modes = data[0] / 100;
         let args: Vec<Arg> = data[1..=3].iter()
             .enumerate()
-            .map(|(i, val)| Arg::parse_arg(modes, i as u32, *val))
+            .map(|(i, val)| Arg::new(modes, i as u32, *val))
             .collect();
         match opcode {
             1 => OpCode::Add { a: args[0], b: args[1], out: args[2] },
