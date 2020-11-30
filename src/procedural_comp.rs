@@ -97,7 +97,7 @@ impl ProcIntCode {
         }
     }
 
-    fn set(&mut  self, arg: Arg, val: i64) {
+    fn set(&mut self, arg: Arg, val: i64) {
         let base = match arg {
             Arg::Relative(_) => self.rb,
             _ => 0,
@@ -147,8 +147,7 @@ impl ProcIntCode {
                 if self.inputs.get(0) == None {
                     return State::Waiting;
                 }
-                let data = self.inputs.get(0).unwrap().clone();
-                self.inputs.remove(0);
+                let data = self.inputs.remove(0);
                 self.set(to, data);
                 self.pc += 2;
             },
