@@ -4,7 +4,7 @@ use crate::*;
 #[derive(Debug, Clone, Copy)]
 pub enum Arg {
     Immediate(i64),
-    Positional(i64),
+    Position(i64),
     Relative(i64)
 }
 
@@ -12,7 +12,7 @@ impl Arg {
     fn val(&self) -> i64 {
         *match self {
             Arg::Immediate(val) => val,
-            Arg::Positional(val) => val,
+            Arg::Position(val) => val,
             Arg::Relative(val) => val
         }
     }
@@ -22,7 +22,7 @@ impl Arg {
         // i.e. mask(12345, 4) -> `5`
         let mask = (modes / 10i64.pow(pos)) % 10;
         match mask {
-            0 => Arg::Positional(val),
+            0 => Arg::Position(val),
             1 => Arg::Immediate(val),
             2 => Arg::Relative(val),
             _ => panic!("Unsupported Parameter Mode")
@@ -109,7 +109,7 @@ impl ProcIntCode {
     fn fetch(&self, arg: Arg) -> i64 {
         match arg {
             Arg::Immediate(val) => val,
-            Arg::Positional(val) => {
+            Arg::Position(val) => {
                 let address = val;
                 self.mem(address)
             },

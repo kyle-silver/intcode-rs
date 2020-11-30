@@ -9,8 +9,7 @@ pub(crate) enum Value {
 
 pub(crate) trait Arg: Debug {
     fn get(&self, rb: i64) -> Value;
-    fn arg_clone(&self) -> Box<dyn Arg>;
-    fn as_res(&self, rb: i64) -> Box<dyn Arg>;
+    fn out_addr(&self, rb: i64) -> Box<dyn Arg>;
 }
 
 mod param_mode {
@@ -38,12 +37,8 @@ mod param_mode {
             Value::Literal(self.val)
         }
 
-        fn arg_clone(&self) -> Box<dyn Arg> {
+        fn out_addr(&self, _rb: i64) -> Box<dyn Arg> {
             Box::new(self.clone())
-        }
-
-        fn as_res(&self, _rb: i64) -> Box<dyn Arg> {
-            self.arg_clone()
         }
     }
 
@@ -57,11 +52,7 @@ mod param_mode {
             Value::Pointer(self.val)
         }
 
-        fn arg_clone(&self) -> Box<dyn Arg> {
-            Box::new(self.clone())
-        }
-
-        fn as_res(&self, _rb: i64) -> Box<dyn Arg> {
+        fn out_addr(&self, _rb: i64) -> Box<dyn Arg> {
             Box::new(Immediate { val: self.val })
         }
     }
@@ -76,13 +67,8 @@ mod param_mode {
             Value::Pointer(self.val + rb)
         }
 
-        fn arg_clone(&self) -> Box<dyn Arg> {
-            Box::new(self.clone())
-        }
-
-        fn as_res(&self, rb: i64) -> Box<dyn Arg> {
+        fn out_addr(&self, rb: i64) -> Box<dyn Arg> {
             Box::new(Immediate { val: self.val + rb })
-//            self.arg_clone()
         }
     }
 }
@@ -118,49 +104,46 @@ mod opcode {
     pub(crate) fn new(data: [i64; 4], rb: i64) -> Box<dyn OpCode> {
         let opcode = data[0] % 100;
         let modes = data[0] / 100;
-        let args: Vec<Box<dyn Arg>> = data[1..=3].iter()
-            .enumerate()
-            .map(|(i, val)| {
-                param_mode::new(modes, *val, i as u32)
-            })
-            .collect();
+        let v0 = param_mode::new(modes, data[1], 0);
+        let v1 = param_mode::new(modes, data[2], 1);
+        let v2 = param_mode::new(modes, data[3], 2);
         match opcode {
             1 => Box::new(Add {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
+                a: v0,
+                b: v1,
+                out: v2.out_addr(rb),
             }),
             2 => Box::new(Mul {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
+                a: v0,
+                b: v1,
+                out: v2.out_addr(rb),
             }),
             3 => Box::new(Read {
-                to: args[0].as_res(rb),
+                to: v0.out_addr(rb),
             }),
             4 => Box::new(Write {
-                val: args[0].arg_clone(),
+                val: v0,
             }),
             5 => Box::new(JumpIfTrue {
-                cond: args[0].arg_clone(),
-                to: args[1].arg_clone(),
+                cond: v0,
+                to: v1,
             }),
             6 => Box::new(JumpIfFalse {
-                cond: args[0].arg_clone(),
-                to: args[1].arg_clone(),
+                cond: v0,
+                to: v1,
             }),
             7 => Box::new(LessThan {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
+                a: v0,
+                b: v1,
+                out: v2.out_addr(rb),
             }),
             8 => Box::new(Equals {
-                a: args[0].arg_clone(),
-                b: args[1].arg_clone(),
-                out: args[2].as_res(rb),
+                a: v0,
+                b: v1,
+                out: v2.out_addr(rb),
             }),
             9 => Box::new(UpdateRb {
-                to_add: args[0].arg_clone(),
+                to_add: v0,
             }),
             99 => Box::new(Halt {}),
             _ => panic!("Unsupported OpCode")
