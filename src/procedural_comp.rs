@@ -204,11 +204,15 @@ impl IntCodeComputer for ProcIntCode {
         loop {
             let opcode = self.decode();
             let state = self.execute(opcode);
-            if let State::Running = state {
-                continue;
-            } else {
-                return state;
-            }
+            match state {
+                State::Running => continue,
+                _ => return state,
+            };
+            // if let State::Running = state {
+            //     continue;
+            // } else {
+            //     return state;
+            // }
         }
     }
 
