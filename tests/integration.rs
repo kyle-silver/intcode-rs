@@ -1,7 +1,7 @@
 use std::fs;
 use intcode_rs::*;
 use intcode_rs::procedural_comp::ProcIntCode;
-use intcode_rs::polymorphic_comp::PolyIntCode;
+// use intcode_rs::polymorphic_comp::PolyIntCode;
 
 fn read(file_name: &str) -> Vec<i64> {
     fs::read_to_string(file_name)
@@ -23,9 +23,11 @@ fn d2p1() {
     program[1] = 12;
     program[2] = 2;
     let mut proc = ProcIntCode::new(program.clone(), vec![]);
-    let mut poly = PolyIntCode::new(program.clone(), vec![]);
+    // let mut poly = PolyIntCode::new(program.clone(), vec![]);
+    let mut poly = poly_client::client_comp(program.clone(), vec![]);
     let ans_proc = day2_part1(&mut proc);
     let ans_poly = day2_part1(&mut poly);
+    // println!("Day 02, Part 1: {} proc / {} poly / {} altp", ans_proc, ans_poly, ans_altp);
     println!("Day 02, Part 1: {} proc / {} poly", ans_proc, ans_poly);
     assert_eq!(4484226, ans_proc);
     assert_eq!(4484226, ans_poly);
@@ -53,7 +55,8 @@ fn day2_part2(compfn: fn(Vec<i64>) -> Box<dyn IntCodeComputer>) -> i64 {
 #[test]
 fn d2p2() {
     let ans_proc = day2_part2(|program| Box::new(ProcIntCode::new(program, vec![])));
-    let ans_poly = day2_part2(|program| Box::new(PolyIntCode::new(program, vec![])));
+    // let ans_poly = day2_part2(|program| Box::new(PolyIntCode::new(program, vec![])));
+    let ans_poly = day2_part2(|program| Box::new(poly_client::client_comp(program, vec![])));
     println!("Day 02, Part 2: {} proc / {} poly", ans_proc, ans_poly);
     assert_eq!(5696, ans_proc);
     assert_eq!(5696, ans_poly);
@@ -68,7 +71,8 @@ fn day5_part1(mut comp: impl IntCodeComputer) -> Vec<i64> {
 fn d5p1() {
     let program = read("res/05.txt");
     let proc = ProcIntCode::new(program.clone(), vec![1]);
-    let poly = PolyIntCode::new(program.clone(), vec![1]);
+    // let poly = PolyIntCode::new(program.clone(), vec![1]);
+    let poly = poly_client::client_comp(program.clone(), vec![1]);
     let ans_proc = day5_part1(proc);
     let ans_poly = day5_part1(poly);
     println!("Day 05, Part 1: {:?} proc / {:?} poly", ans_proc, ans_poly);
@@ -85,7 +89,8 @@ fn day5_part2(mut comp: impl IntCodeComputer) -> i64 {
 fn d5p2() {
     let program = read("res/05.txt");
     let proc = ProcIntCode::new(program.clone(), vec![5]);
-    let poly = PolyIntCode::new(program.clone(), vec![5]);
+    // let poly = PolyIntCode::new(program.clone(), vec![5]);
+    let poly = poly_client::client_comp(program.clone(), vec![5]);
     let ans_proc = day5_part2(proc);
     let ans_poly = day5_part2(poly);
     println!("Day 05, Part 2: {:?} proc / {:?} poly", ans_proc, ans_poly);
@@ -136,7 +141,8 @@ fn d7p1() {
         Box::new(ProcIntCode::new(program, vec![]))
     }));
     let ans_poly = day7_part1("res/07.txt", unique_perms, Box::new(|program| {
-        Box::new(PolyIntCode::new(program, vec![]))
+        // Box::new(PolyIntCode::new(program, vec![]))
+        Box::new(poly_client::client_comp(program, vec![]))
     }));
     println!("Day 02, Part 1: {} proc / {} poly", ans_proc, ans_poly);
     assert_eq!(880726, ans_proc);
@@ -185,7 +191,8 @@ fn d7p2() {
         Box::new(ProcIntCode::new(program, vec![]))
     }));
     let ans_poly = day7_part2("res/07.txt", unique_perms, Box::new(|program| {
-        Box::new(PolyIntCode::new(program, vec![]))
+        // Box::new(PolyIntCode::new(program, vec![]))
+        Box::new(poly_client::client_comp(program, vec![]))
     }));
     println!("Day 02, Part 2: {} proc / {} poly", ans_proc, ans_poly);
     assert_eq!(4931744, ans_proc);
@@ -201,7 +208,8 @@ fn day9(mut comp: impl IntCodeComputer) -> i64 {
 fn d9p1() {
     let program = read("res/09.txt");
     let proc = ProcIntCode::new(program.clone(), vec![1]);
-    let poly = PolyIntCode::new(program.clone(), vec![1]);
+    // let poly = PolyIntCode::new(program.clone(), vec![1]);
+    let poly = poly_client::client_comp(program.clone(), vec![1]);
     let ans_proc = day9(proc);
     let ans_poly = day9(poly);
     println!("Day 02, Part 1: {} proc / {} poly", ans_proc, ans_poly);
@@ -213,7 +221,8 @@ fn d9p1() {
 fn d9p2() {
     let program = read("res/09.txt");
     let proc = ProcIntCode::new(program.clone(), vec![2]);
-    let poly = PolyIntCode::new(program.clone(), vec![2]);
+    // let poly = PolyIntCode::new(program.clone(), vec![2]);
+    let poly = poly_client::client_comp(program.clone(), vec![2]);
     let ans_proc = day9(proc);
     let ans_poly = day9(poly);
     println!("Day 02, Part 1: {} proc / {} poly", ans_proc, ans_poly);

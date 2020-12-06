@@ -208,11 +208,6 @@ impl IntCodeComputer for ProcIntCode {
                 State::Running => continue,
                 _ => return state,
             };
-            // if let State::Running = state {
-            //     continue;
-            // } else {
-            //     return state;
-            // }
         }
     }
 

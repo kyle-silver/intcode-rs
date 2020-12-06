@@ -1,5 +1,7 @@
 pub mod procedural_comp;
 pub mod polymorphic_comp;
+pub mod poly2_comp;
+pub mod poly_client;
 
 #[derive(Debug, PartialEq)]
 pub enum State {
